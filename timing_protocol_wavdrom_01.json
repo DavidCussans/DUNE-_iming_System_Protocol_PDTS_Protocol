@@ -1,0 +1,6 @@
+{signal: [
+  {name:'clk',         wave: 'p.......................' },
+  {name:'Data',        wave: '44434444435544443444444344', data: 'prbs prbs chk /c/ addr addr d0 d1 d2 /s/ s0 s1 d3 d4 chk chk /c/ addr addr d0 d1 chk chk /c/ prbs prbs prbs' },
+  {name:'Return',	   wave: 'zzzzzzzzz44444444344443zzzz', data: 'prbs prbs prbs prbs prbs prbs chk chk /c/ d0 d1 chk chk /c/'}
+]
+}
