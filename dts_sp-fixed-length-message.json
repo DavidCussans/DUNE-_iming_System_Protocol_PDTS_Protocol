@@ -1,0 +1,6 @@
+{signal: [
+  {name:'Clock (62.5MHz)',                                    wave: 'p.............'                                                                          },
+  {name: 'Master -> Endpoint (8b/10b symbols, 312.5MBit/s)',  wave: '33.3.4.4.3.3.3',data:['','prbs','prbs','K28.1','cmd','prbs','prbs']},
+  {name: 'Endpoint -> Master',                                wave: 'x.............'}
+  ]
+}

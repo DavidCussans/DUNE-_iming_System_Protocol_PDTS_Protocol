@@ -1,0 +1,14 @@
+{signal: [
+  {name:'Clock (62.5MHz)',                           wave: 'p.....................................................'   },
+  {name:'Data (8b/10b symbols, 312.5MBit/s)',        wave: '4.4.4.4.5.5.5.5.5|5.5.5.4.4.4.4|4.4.4.4.4.4.4.4.4.4.4.', node: '........i.....a.........j............................' , data: ['prbs','chk','chk','/c/','A(7:0)','A(15:8)','cmd','D0','D1','Dn','chk(7:0)','chk(15:8)','/c/','addr','addr','prbs','prbs','chk','chk','/c/','',''] },
+  {name:'Return',	                                 wave: 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz7.7|7.7.7.7.5.5.5.5.5.zz', node: '..............................b...........c.........m' ,data: 'prbs prbs prbs chk chk /c/ d0 d1 chk chk /c/'},
+  {              	                                                                                                 node: '..............d...............e...........f..........' },
+     {              	                                                                                             node: '........k...............l.................o.........n' }
+],
+  edge: [
+    'a-d' , 'd<->e t_on',
+    'c-f','e<->f t_training',
+    'i-k','j-l','k<->l Variable Length Message to endpoint',
+    'm-n','f-o','o<->n Return message from endpoint'
+  ]
+}
