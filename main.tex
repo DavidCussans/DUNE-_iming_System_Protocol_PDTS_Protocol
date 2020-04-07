@@ -33,9 +33,9 @@
 
 \lstMakeShortInline[columns=fixed]|
 
-\title{DUNE-SP Timing System: Protocol}
+\title{DUNE-SP Timing System: Protocol and\\ Endpoint Interface}
 \begin{center}
-{\LARGE\bf DUNE-SP Timing System Protocol}
+{\LARGE\bf DUNE-SP Timing System Protocol and\\ Endpoint Interface}
 \vspace{1cm}
 
 J. Brooke, D. Cussans, D. Newbold, S. Trilov, \\
@@ -284,7 +284,7 @@ A conceptual diagram of an endpoint is shown in Figure~\ref{fig:fw_if}. It consi
 	\item A clock and data recovery IC (e.g. ADN2814). This component is not required for endpoints with a clock + data interface.
 	\item A PLL for jitter reduction and phase adjustment, with the latter function controlled from the endpoint FPGA. The PLL may be implemented as an internal clock controller (e.g. MMCM) within the FPGA, or may be an external component. This component is not required for endpoints with a clock + data interface, since phase may be controlled by the optical-LVDS converter module if necessary.
 	\item A firmware protocol decoder, implemented inside the FPGA as part of the overall system firmware. This block receives and interprets the timing data stream, and provides decoded commands to other blocks inside the FPGA. It also monitors and counts errors observed in the data stream.
-	\item(optional) For high precision phase alignment ( < 1ns) a high speed D-type flip-flop should be used to re-time the outgoing data stream onto the master 312.5MHz clock.
+	\item(optional) For high precision phase alignment ( $< 1{\mathrm ns}$) a high speed D-type flip-flop should be used to re-time the outgoing data stream onto the master 312.5MHz clock.
 \end{itemize}
 
 Error conditions monitored by the decoder include:
