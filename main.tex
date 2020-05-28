@@ -16,8 +16,9 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{hyperref}
-\usepackage[backend=bibtex,sorting=none]{biblatex}
-\bibliography{refs}
+\usepackage[backend=bibtex]{biblatex}
+\addbibresource{bibliography.bib}
+%\bibliography{refs}
 
 \begin{document}
 
@@ -38,7 +39,7 @@
 {\LARGE\bf DUNE-SP Timing System Protocol and\\ Endpoint Interface}
 \vspace{1cm}
 
-J. Brooke, D. Cussans, D. Newbold, S. Trilov, \\
+J. Brooke, D. Cussans, D. Newbold, S. Trilov \\
 \vspace*{1ex}
 v5 -- 23rd March 2020
 \end{center}
@@ -94,7 +95,7 @@ synchronisation signals, and a general-purpose packet data output to each endpoi
 The cycle counter may be used further to generate low-frequency timing signals for
 further propagation, e.g. the 2MHz sampling signal for the cold ADCs.
 
-A more detailed description of the DUNE-SP timing system is found in XXXX\cite{ref:dts-sp-description}
+An overall description of the DUNE-SP timing system is found in \cite{ref:dts-sp-description}. A description of the structure of the firmware is found in \cite{ref:dts-sp-firmware}
 
 
 \subsection{Timing Master Functions}
@@ -147,12 +148,12 @@ Conversion between these three methods is transparent at protocol level, with th
 The data stream uses 8b/10b encoding to transmit one byte per five 62.5MHz clock cycles. The standard comma mechanism is used for word alignment, with K28.5 used as the comma character. The timing data stream consists of a sequence of fixed length packets, variable length packets, and idle packets, in that order of priority.
 
 \begin{itemize}
-	\item Fixed length packets begin with a K28.1 character (/S/), and are of fixed two-character length. Fixed length packets may interrupt other traffic at any time, and carry synchronous commands that are guaranteed to be issued at endpoints in the correct order, and with a fixed timing relationship to their request at the master unit.
-	\item Variable length packets are of arbitrary length, begin immediately on the first non-comma character encountered in the data stream, and end with a K28.5 character (/C/). Variable length packets carry general control information to endpoints, that is not guaranteed to arrive with a fixed latency.
+	\item Fixed length packets begin with a K28.1 character (/S/), and are of fixed two-character length. Fixed length packets may interrupt other traffic at any time, and carry synchronous commands that are guaranteed to be issued at endpoints in the correct order, and with a fixed timing relationship to their request at the master unit (i.e. a fixed latency).
+	\item Variable length packets are of arbitrary length, begin immediately on the first non-comma character encountered in the data stream, and end with a K28.5 character (/C/). Variable length packets carry general control information to endpoints, that is not guaranteed to arrive at the endpoint with a fixed latency w.r.t. the master.
 	\item Idle packets are a particular type of variable length packet, transmitted when no other packet information is queued. They consist of a pseudo-random byte sequence in order to minimise EMI due to repetitive patterns during link idle. Idle packets are of short length to ensure sufficient comma density for rapid link alignment.
 \end{itemize}
 
-Return data uses the same protocol, with the exception that normal endpoints never send fixed length commands. 
+{\LARGE\bf DUNE-SP Timing System Protocol and\\ Endpoint Interface}
 
 Figure~\ref{fig:wave-fixed-length} shows an simplified example of the structure of the timing data stream for a fixed length message. There is no return message from the endpoints. 
 
@@ -222,7 +223,7 @@ The timing protocol allows transmission of fixed length commands at a rate of no
 
 Variable length packets contain a single one-byte command followed by an arbitrary number of data bytes. The address is a unique experiment-wide 16b endpoint identifier, or has the special value of 0xfff in the top 12 bits for a broadcast packet, with the timing group identifier in the bottom four bits. The checksum is a standard CRC-16-CCITT, calculated on all packet bytes including the address. Return data packets lack the address field, but are otherwise identical. Idle packets are identified by the all-zeroes address, and contain random data which is not interpreted further by the endpoint, except to validate the checksum.
 
-{\color{red}FUTURE\_UPDATE} Document the ProtoDUNE-SP address assignment.
+{\color{red}FUTURE\_UPDATE} Document the ProtoDUNE-SP address assignment. Document the ProtoDUNE-SP Run 2 address assignment. Document the DUNE address assignment.
 
 \subsection{Layer 3: Command assignment}
 
