@@ -1,24 +1,32 @@
-% XeLaTeX style packages
+ % XeLaTeX style packages
 
-\documentclass[a4paper,11pt]{article}
+%\documentclass[a4paper,11pt]{article}
+\documentclass{dune}
+%\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
 \usepackage{minted}
 \usepackage{listings}
 \usepackage{pdflscape}
 %\usepackage{fontspec}
 %\defaultfontfeatures{Ligatures=TeX}
 % \setmainfont{Liberation Serif}
-\usepackage{microtype}
-\frenchspacing
-\usepackage{enumitem}
-\usepackage{color}
-\usepackage{geometry}
-\usepackage{graphicx}
-\usepackage{booktabs}
-\usepackage{multirow}
-\usepackage{hyperref}
-\usepackage[backend=bibtex]{biblatex}
+%\usepackage{microtype}
+%\frenchspacing
+%\usepackage{enumitem}
+%%\usepackage{color}
+%\usepackage{geometry}
+%\usepackage{graphicx}
+%\usepackage{booktabs}
+%\usepackage{multirow}
+%\usepackage{hyperref}
+%\usepackage[backend=bibtex]{biblatex}
+\usepackage{biblatex}
 \addbibresource{bibliography.bib}
 %\bibliography{refs}
+
+\input{units.tex}
+\input{defs.tex}
+\input{glossary.tex}
 
 \begin{document}
 
@@ -131,13 +139,13 @@ The 62.5MHz clock and timing commands are distributed to all timing endpoints as
 
 Clock and data are typically distributed as a single signal, using a CDR device at endpoints to recover separate clock and data signals. However, some endpoints may need to be supplied with a separate clock signal, together with the serialized data stream. 
 
-The data stream is encoded as a 312.5Mb/s DC-balanced signal suitable for distribution via optical or electrical interfaces (ProtoDUNE-1 used 250MBits/). This low data rate allows the use of inexpensive components designed for 1000Mb/s Ethernet. Using 1000Base-BX SFPs with single mode fibre allows a single fibre to carry both messages from master to endpoint and the return messages.
+The data stream is encoded as a 312.5Mb/s DC-balanced signal suitable for distribution via optical or electrical interfaces (ProtoDUNE-1 used 250MBits/s). This data rate is chosen to be high enough to allow the use of 1000Mb/s optical Ethernet components and low enough to use general purpose FPGA I/O, rather than requiring the use of dedicated (Multi)Gigabit Transceivers. Using 1000Base-BX SFPs with single mode fibre allows a single fibre to carry both messages from master to endpoint and the return messages.
 
 There are three defined transport methods for the timing signal:
 
 \begin{enumerate}
-	\item Encoded data stream transported via optical fibre. The optical interface is implemented via commercial plug-in SFP modules, allowing flexibility in implementation. It is anticipated for DUNE-SP that 1000base-BX components will be used, i.e. using single mode fibre at 1310nm (master to endpoint) and (1150nm endpoint to master) wavelengths. Division and recombination of signals will be via passive commercial splitter modules (for lab use), with inactive endpoints disabling their optical transmitter, or via an active fan out (for use at the experiment site with large numbers of endpoints).
-	\item Encoded data stream transported via LVDS. Two differential pairs will carry broadcast and return data respectively. Division of signals will be via an active fan-out unit if required (e.g. as implemented on the WIEC backplane), recombination of signals will be via an active logical 'or' or Bus LVDS wire-or, with inactive endpoints transmitting continuous '0' level. This method is expected to be used on crate backplanes only.
+	\item Encoded data stream transported via optical fibre. The optical interface is implemented via commercial plug-in SFP modules, allowing flexibility in implementation. It is anticipated for DUNE-SP that 1000base-BX components will be used, using single mode fibre at 1310nm (master to endpoint) and (1150nm endpoint to master) wavelengths. Division and recombination of signals will be via passive commercial splitter modules (for lab use), with inactive endpoints disabling their optical transmitter, or via an active fan out followed by passive splitter modules (for use at the experiment site with large numbers of endpoints).
+	\item Encoded data stream transported via LVDS. Two differential pairs will carry broadcast and return data respectively. Division of signals will be via an active fan-out unit if required (e.g. as implemented on the \dword{wiec} backplane), recombination of signals will be via an active logical 'or' or Bus LVDS wire-or, with inactive endpoints transmitting continuous '0' level. This method is expected to be used on crate backplanes only.
 	\item Encoded data stream along with a separate phase-aligned clock signal, transported via LVDS over twisted pair. A third pair will be used to carry the clock signal. Returned data is transmitted on the same clock. This method will be used only for point-to-point signalling, for compatibility with existing interfaces.
 \end{enumerate}
 
@@ -148,12 +156,12 @@ Conversion between these three methods is transparent at protocol level, with th
 The data stream uses 8b/10b encoding to transmit one byte per five 62.5MHz clock cycles. The standard comma mechanism is used for word alignment, with K28.5 used as the comma character. The timing data stream consists of a sequence of fixed length packets, variable length packets, and idle packets, in that order of priority.
 
 \begin{itemize}
-	\item Fixed length packets begin with a K28.1 character (/S/), and are of fixed two-character length. Fixed length packets may interrupt other traffic at any time, and carry synchronous commands that are guaranteed to be issued at endpoints in the correct order, and with a fixed timing relationship to their request at the master unit (i.e. a fixed latency).
+	\item Fixed length packets begin with a K28.1 character (/S/), and are followed by a word indicating the \dword{group} (4 bits) and command type (4 bits). Depending on the command type there may be additional words. The number of additional words depends on the command type.
+	 
+	 Fixed length packets may interrupt other traffic at any time, and carry synchronous commands that are guaranteed to be issued at endpoints in the correct order, and with a fixed timing relationship to their request at the master unit (i.e. a fixed latency).
 	\item Variable length packets are of arbitrary length, begin immediately on the first non-comma character encountered in the data stream, and end with a K28.5 character (/C/). Variable length packets carry general control information to endpoints, that is not guaranteed to arrive at the endpoint with a fixed latency w.r.t. the master.
 	\item Idle packets are a particular type of variable length packet, transmitted when no other packet information is queued. They consist of a pseudo-random byte sequence in order to minimise EMI due to repetitive patterns during link idle. Idle packets are of short length to ensure sufficient comma density for rapid link alignment.
 \end{itemize}
-
-{\LARGE\bf DUNE-SP Timing System Protocol and\\ Endpoint Interface}
 
 Figure~\ref{fig:wave-fixed-length} shows an simplified example of the structure of the timing data stream for a fixed length message. There is no return message from the endpoints. 
 
@@ -187,7 +195,7 @@ Figure~\ref{fig:wave-variable-length} shows a variable length message being inte
 
 \subsection{Layer 2: Addressing and Protocol}
 
-The synchronous and asynchronous packet formats are shown in Tables~\ref{tab:async} and \ref{tab:sync}.
+The synchronous and asynchronous packet formats are shown in Tables~\ref{tab:async}, \ref{tab:sync} and \ref{tab:sync-extra-words}.
 
 \begin{table}[h!]
   \centering
@@ -196,8 +204,23 @@ The synchronous and asynchronous packet formats are shown in Tables~\ref{tab:asy
     0 & /S/ (K28.1) \\
     1 & Group / Command \\ \bottomrule
   \end{tabular}
-  \caption{Fixed length packet format}
+  \caption{Fixed length packet format with no extra words.}
   \label{tab:sync}
+\end{table}
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{@{}ll@{}} \toprule
+    Byte & Content \\ \midrule
+    0 & /S/ (K28.1) \\
+    1 & Group / Command \\ 
+    2 & word0 \\
+    3 & word1 \\
+    4 & word2 \\
+    5 & word3 \\ \bottomrule
+  \end{tabular}
+  \caption{Fixed length packet format with four word payload. (For example a timing sync message)}
+  \label{tab:sync-extra-words}
 \end{table}
 
 \begin{table}[h!]
@@ -217,7 +240,7 @@ The synchronous and asynchronous packet formats are shown in Tables~\ref{tab:asy
   \label{tab:async}
 \end{table}
 
-Fixed length packets contain a single four-bit timing group specifier, and a single four-bit command. The command field encodes sixteen separate synchronous commands, corresponding directly to the sync outputs of the decoder block. Every timing endpoint may be configured with a timing group mask, such that it accept fixed length (synchronous) commands addressed only to selected timing groups. This allows flexible partitioning of the system.
+Fixed length packets contain a single four-bit timing group specifier, and a single four-bit command. Depending on the command type this may be followed by additional words. The number of additional words is determined by the command type. The command field encodes sixteen separate synchronous commands, corresponding directly to the sync outputs of the decoder block. Every timing endpoint may be configured with a timing group mask, such that it accept fixed length (synchronous) commands addressed only to selected timing groups. This allows flexible partitioning of the system.
 
 The timing protocol allows transmission of fixed length commands at a rate of no more than once per 10 clock cycles, which is adequate for the low rate of synchronous commands expected in both ProtoDUNE-SP and DUNE. In the event of clashing fixed length commands, a priority encoding scheme is used, such that lower-numbered commands preempt high-numbered ones, and lower-numbered timing groups preempt higher numbered ones. Under rare or pathological conditions this may result in a fixed length command being rejected; a record is kept of all propagated and rejected signals.
 
@@ -555,6 +578,8 @@ entity pdts_ep_decoder is
 
 \end{minted}
 \clearpage
+
+\printglossary
 \printbibliography
 
 \end{document}
