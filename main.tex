@@ -342,10 +342,10 @@ This procedure is carried out after endpoints are powered and reset, but before 
 	\item The endpoint responds by starting to transmit idle packets back to the master.
 	\item The master waits for CDR lock and measures the clock phase of the signal returning from endpoint
 	\item The master sends a status packet request ( A\_Status)
-	\item The master measures the number of whole clock cycle in the master-->endpoint-->master path. This establishes the delay to / from endpoint
+	\item The master measures the number of whole clock cycle in the master $\rightarrow$ endpoint $\rightarrow$ master path. This establishes the delay to / from endpoint
 	\item The master issues delay / phase adjustment command ( A\_Adjust ) to the endpoint
 	\item The master requests a status packet and verifies correct alignment.
-	\item The master sends a A\_Disable command to the endpoint and waits until the endpoint has stopped transmitting.
+	\item The master sends A\_Disable command to the endpoint and waits until the endpoint has stopped transmitting.
 \end{enumerate}
 
 This process is estimated to require around 10ms per endpoint (dominated by the time required for CDR lock and clock phase measurement), allowing \dword{pdsp2} to be brought up in a few seconds.
