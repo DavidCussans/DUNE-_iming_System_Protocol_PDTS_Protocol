@@ -128,7 +128,7 @@ The data stream is encoded as a 312.5Mb/s DC-balanced signal suitable for distri
 There are three defined transport methods for the timing signal:
 
 \begin{enumerate}
-	\item Encoded data stream transported via optical fibre. The optical interface is implemented via commercial plug-in SFP modules, allowing flexibility in implementation. It is anticipated for DUNE-SP that 1000Base-BX components will be used, using single mode fibre at 1310nm (master to endpoint) and (1550nm endpoint to master) wavelengths. Division and recombination of signals will be via passive commercial splitter modules (for lab use), with inactive endpoints disabling their optical transmitter, or via an active fan out followed by passive splitter modules (for use at the experiment site with large numbers of endpoints).
+	\item Encoded data stream transported via optical fibre. The optical interface is implemented via commercial plug-in SFP modules, allowing flexibility in implementation. It is anticipated for DUNE-SP that 1000Base-BX components will be used, using single mode fibre at 1310nm (master to endpoint) and (1550nm endpoint to master) wavelengths. Division and recombination of signals will be via passive commercial splitter modules (for lab use). One one endpoint at a time will enable their optical transmitter, or via an active fan out followed by passive splitter modules (for use at the experiment site with large numbers of endpoints).
 	\item Encoded data stream transported via LVDS. Two differential pairs will carry broadcast and return data respectively. Division of signals will be via an active fan-out unit if required (e.g. as implemented on the \dword{wiec} backplane), recombination of signals will be via an active logical 'or' or Bus LVDS wire-or, with inactive endpoints transmitting continuous '0' level. This method is expected to be used on crate backplanes only.
 	\item Encoded data stream along with a separate phase-aligned clock signal, transported via LVDS over twisted pair. Two pairs - one from master to endpoint, one from endpoint to master. A third pair will be used to carry the clock signal. Returned data is transmitted on the same clock. This method is only used only for point-to-point signalling. It is used inside the timing system and is offered for compatibility with existing interfaces.
 \end{enumerate}
@@ -149,7 +149,8 @@ The data stream uses 8b/10b encoding to transmit one byte per five 62.5MHz clock
 
 Figure~\ref{fig:wave-fixed-length} shows an simplified example of the structure of the timing data stream for a fixed length message. There is no return message from the endpoints. 
 
-Figure~\ref{fig:wave-variable-length} shows an simplified example of the structure of the timing data stream for a variable length message. The command results in a return message from an endpoint. The endpoint must start transmitting idle packets within $t_{\mathrm on} < 100 ms$\footnote{The minimum response time is set by the requirement to be able to poll all endpoints in O(1) with a 1:8 fibre splitting ratio}. The idle packets must last a minimum period of $t_{\mathrm training} > 100 ms$\footnote{The minimum training period is set by the SFP $t_\mathrm{on}$ specification, see e.g. SFF-8472 Rev 12.3. The CDR lock time adds a negligible time to this.} in order for the optical link transmitters to stabilise and master unit CDR chip to lock. The time $t_{\mathrm on}  + t_{\mathrm training}$ must be fixed and known in advance.
+Figure~\ref{fig:wave-variable-length} shows an example of the structure of the timing data stream for a variable length message. In this case the A\_Enable message. This command results in the end-point laser being enabled. The endpoint must start transmitting idle packets within $t_{\mathrm on} < 100 ms$\footnote{The minimum response time is set by the requirement to be able to poll all endpoints in O(1) with a 1:8 fibre splitting ratio}. 
+%The idle packets must last a minimum period of $t_{\mathrm training} > 100 ms$\footnote{The minimum training period is set by the SFP $t_\mathrm{on}$ specification, see e.g. SFF-8472 Rev 12.3. The CDR lock time adds a negligible time to this.} in order for the optical link transmitters to stabilise and master unit CDR chip to lock. The time $t_{\mathrm on}  + t_{\mathrm training}$ must be fixed and known in advance.
 % 300ms taken from https://www.finisar.com/sites/default/files/resources/an-2030_ddmi_for_sfp_rev_e2-20140404_updated.pdf , t_power_leve2 
 
 Figure~\ref{fig:wave-variable-length} shows a variable length message being interrupted by a fixed length message. Fixed length messages always have priority since they are designed to enable fixed latency message passing.
@@ -164,8 +165,10 @@ Figure~\ref{fig:wave-variable-length} shows a variable length message being inte
 
 \begin{figure}[h]
 	\centering
-	\includegraphics[width=\linewidth]{dts_sp-variable-length-message_ed.pdf}
-	\caption{Example timing data stream for a variable length message. The preceding idle packet (also a variable length message) terminates in a comma (/C/ , K28.5) character. The endpoint returns data to the timing master after a period $t_{\mathrm on}$ needed by the endpoint to activate its transmitter plus $t_{\mathrm training}$ needed by the timing master to lock to the signal.}
+	\includegraphics[width=\linewidth]{dts_sp-variable-length-message-a_enable_ed.pdf}
+	\caption{Timing data stream for an A\_Enable variable length message. The preceding idle packet (also a variable length message) terminates in a comma (/C/ , K28.5) character. The endpoint starts to transmit data back to the timing master after a period $t_{\mathrm on}$ needed by the endpoint to activate its transmitter.  
+	%plus $t_{\mathrm training}$ needed by the timing master to lock to the signal.
+	}
 	\label{fig:wave-variable-length}
 \end{figure}
 
@@ -209,7 +212,7 @@ The synchronous and asynchronous packet formats used in \dword{pdsp2} are shown 
     9 & word7 \\ 
     \bottomrule
   \end{tabular}
-  \caption{Fixed length packet format with four word payload. (For example a timing sync message)}
+  \caption{Fixed length packet format with eight word payload. (For example a S\_sync timing sync message)}
   \label{tab:sync-extra-words}
 \end{table}
 
@@ -294,7 +297,6 @@ The fixed length (synchronous) and variable length (asynchronous) commands curre
   \begin{tabular}{@{}lllp{9cm}@{}} \toprule
     Cmd & Name & Data bytes & Notes\\ \midrule
     0x0 & A\_Reset & 0 & Resets state of endpoint \\
-    0x1 & A\_Sync & 8 & Stores cycle counter value to be loaded at next S\_Sync \\
     0x2 & A\_Enable & 0 & Enables endpoint transmission \\
     0x3 & A\_Status & 1 & Request endpoint status packet transmission \\ 
     0x4 & A\_Adjust & 2 & Adjusts packet delay and clock phase of endpoint \\ \bottomrule
