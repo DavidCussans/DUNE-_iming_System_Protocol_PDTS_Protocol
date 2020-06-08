@@ -1,6 +1,3 @@
- % XeLaTeX style packages
-
-%\documentclass[a4paper,11pt]{article}
 \documentclass{dune}
 %\usepackage[utf8]{inputenc}
 \usepackage{graphicx}
@@ -8,25 +5,8 @@
 \usepackage{listings}
 \usepackage{pdflscape}
 \usepackage{bytefield}
-%\usepackage{fontspec}
-%\defaultfontfeatures{Ligatures=TeX}
-% \setmainfont{Liberation Serif}
-%\usepackage{microtype}
-%\frenchspacing
-%\usepackage{enumitem}
-%%\usepackage{color}
-%\usepackage{geometry}
-%\usepackage{graphicx}
-%\usepackage{booktabs}
-%\usepackage{multirow}
-%\usepackage{hyperref}
-%\usepackage[backend=bibtex]{biblatex}
 \usepackage{biblatex}
 \addbibresource{bibliography.bib}
-%\bibliography{refs}
-
-%test
-
 \input{units.tex}
 \input{defs.tex}
 \input{glossary.tex}
@@ -252,11 +232,11 @@ The synchronous and asynchronous packet formats used in \dword{pdsp2} are shown 
 
 Fixed length packets contain a single four-bit timing \dword{group} specifier, and a single four-bit command. Depending on the command type this may be followed by additional words. The number of additional words is determined by the command type. The command field encodes sixteen separate fixed-length commands. Every timing endpoint may be configured with a timing group mask, such that it accept fixed length (synchronous) commands addressed only to selected timing groups. This allows flexible partitioning of the system. Thus there are four independent timing groups and an endpoint can belong to one or more of them.
 
-The timing protocol allows transmission of fixed length commands at a rate of no more than once per 10 clock cycles, which is adequate for the low rate of synchronous commands expected in \dword{pdsp1},\dword{pdsp2} and \dword{dune} \dword{fd}. In the event of clashing fixed length commands, a priority encoding scheme is used, such that lower-numbered commands preempt high-numbered ones, and lower-numbered timing groups preempt higher numbered ones. Under rare or pathological conditions this may result in a fixed length command being rejected; a record is kept of all propagated and rejected signals.
+The timing protocol allows transmission of fixed length commands at a rate of no more than once per 10 clock cycles, which is adequate for the low rate of synchronous commands expected in \dword{pdsp1},\dword{pdsp2} and \dword{dune} \dword{fd}. In the event of clashing fixed length commands, a priority encoding scheme is used, such that lower-numbered commands are transmitted in preference to high-numbered ones, and commands with lower-numbered timing groups are transmitted in preference to commands with higher numbered ones. Under rare or pathological conditions this may result in a fixed length command being rejected; a record is kept of all propagated and rejected signals.
 
-Variable length packets contain a single one-byte command followed by an arbitrary number of data bytes. The address is a unique experiment-wide 16b endpoint identifier, or has the special value of 0xfff in the top 12 bits for a broadcast packet, with the timing group identifier in the bottom four bits. The checksum is a standard CRC-16-CCITT, calculated on all packet bytes including the address. Return data packets have identical format. Idle packets are identified by the all-zeroes address, and contain random data which is not interpreted further by the endpoint, except to validate the checksum.
+Variable length packets contain a 16-bit address, followed by a single one-byte command followed by an arbitrary number of data bytes. The address is a unique experiment-wide 16b endpoint identifier, or has the special value of 0xfff in the top 12 bits for a broadcast packet, with the timing group identifier in the bottom four bits. The checksum is a standard CRC-16-CCITT, calculated on all packet bytes including the address. Return data packets have identical format. Idle packets are identified by the all-zeroes address, and contain random data which is not interpreted further by the endpoint, except to validate the checksum.
 
-\subsubsection{Address Assignment}
+\subsubsubsection{Address Assignment}
 
 
 
@@ -292,7 +272,7 @@ Every active endpoint must have a unique identifier. These are are assigned geog
 
 {\color{red}FUTURE\_UPDATE} Define a variable length command that will interrogate a unique ID in the endpoint (c.f. Ethernet MAC address ).
 
-\subsubsection{Commands}
+\subsubsubsection{Commands}
 
 
 The fixed length (synchronous) and variable length (asynchronous) commands currently defined for \dword{pdsp1} and \dword{pdsp2} are shown in Tables~\ref{tab:sync_cmds}, \ref{tab:async_cmds} and \ref{tab:async_ret_cmds}. In the case of fixed-length command queue conflict, priority for transmission is assigned to lower-numbered commands (i.e. counter sync command has priority over all over traffic). Variable length commands meant to be interpreted internally by the timing system endpoint decoder use are distinguished by a 0 in the topmost bit of the command byte.
@@ -335,86 +315,15 @@ The fixed length (synchronous) and variable length (asynchronous) commands curre
 
 {\color{red}FUTURE\_UPDATE} Define further fixed length and variable length commands.
 
-\section{Timing Endpoint Interfaces}
 
-\subsection{Timing Endpoint Functions}
 
-A timing endpoint is characterised by the following properties:
+\subsubsection{Layer 3: System Level Operations}
 
-\begin{itemize}
-	\item A single system clock phase, adjustable under timing system control
-	\item A unique address
-	\item A timing group mask
-\end{itemize}
-
-A conceptual diagram of an endpoint is shown in Figure~\ref{fig:fw_if}. It consists of three major components and one optional component:
-
-\begin{itemize}
-	\item A clock and data recovery IC (e.g. ADN2814). This component is not required for endpoints with a clock + data interface.
-	\item A PLL for jitter reduction and phase adjustment, with the latter function controlled from the endpoint FPGA. The PLL may be implemented as an internal clock controller (e.g. MMCM) within the FPGA, or may be an external component. This component is not required for endpoints with a clock + data interface, since phase may be controlled by the optical-LVDS converter module if necessary.
-	\item A firmware protocol decoder, implemented inside the FPGA as part of the overall system firmware. This block receives and interprets the timing data stream, and provides decoded commands to other blocks inside the FPGA. It also monitors and counts errors observed in the data stream.
-	\item(optional) For high precision phase alignment ( $< 1{\mathrm ns}$) a high speed D-type flip-flop should be used to re-time the outgoing data stream onto the master 312.5MHz clock.
-\end{itemize}
-
-Error conditions monitored by the decoder include:
-
-\begin{itemize}
-	\item 8b/10b decoder errors
-	\item Packet checksum errors
-	\item Counter-out-of-sync error
-	\item CDR / PLL lock timeout
-\end{itemize}
-
-The status of the decoder may be monitored locally via the status flags (see below), or for soft errors, remotely via the R\_Status command. An endpoint that is in error can be reset locally or via the timing system, and then brought back into synchronisation with the rest of the system at the next S\_Sync command.
-
-\begin{figure}[p]
-	\centering
-	\includegraphics[width=0.9\textwidth]{timing_endpoint_block.pdf}
-	\caption{Endpoint signal paths}
-	\label{fig:fw_if}
-\end{figure}
-
-\subsection{Endpoint Firmware Interface}
-
-The decoder block exposes three sets of signals:
-
-\subsubsection{\textcolor{red}{sys\_clk} domain signals}
-
-\begin{itemize}
-	\item |sys_clk| (o) is the free-running local clock provided by the host FPGA
-	\item |sys_rst| (i) is a startup synchronous reset signal
-	\item |address| (i) is a 16b word specifying: the address identifying this endpoint (see above for addressing scheme); and the timing group mask. It should not change once |sys_rst| is released.
-	\item |status| (o, 4b) is a set of output signals indicating the internal state of the decoder, including: whether the core is in contact with the timing master; is in one of several possible setup or error conditions; is providing a stable global clock. The signal may be used to drive a reset of all logic governed by the global clock.
-\end{itemize}
-
-{\color{red}FUTURE\_UPDATE} Write state transition diagram for the decoder.
-
-\subsubsection{\textcolor{red}{Global\_clk} domain signals}
-
-\begin{itemize}
-	\item |global_clk| (i) is the phase-adjusted 50MHz system clock from the PLL
-	\item |sync| (o, 16b) is a set of bits corresponding to decoded fixed length messages. These bits go high for one clock cycle on receipt of the corresponding fixed length message.
-	\item |cmd| (o, 8b) is a byte-wide output carrying a copy of received packet data addressed to this endpoint.
-	\item |strobe| (o) is a signal qualifying the validity of the |cmd| output. It stays high for an entire packet of data, then goes low at the end of the packet.
-	\item |timestamp| (o, 64b) is the 64b system cycle counter, cycling at global clock frequency.
-\end{itemize}
-
-\subsubsection{Other signals}
-
-\begin{itemize}
-	\item |data| (i) is the recovered or received serial timing data stream. This signal is automatically registered on the rising or falling edge of |global_clk| in order to cope with arbitrary phase alignment.
-	\item |cdr_lock| (i) is the lock status signal of the CDR chip
-	\item |pll_lock| (i) is the lock status of the PLL
-	\item |pll_adj| (o, 8b) is a word indicating the desired phase adjustment for global\_clock. The physical interface to the PLL is implemented by the host FPGA, since this may require communication via a range of means to the PLL depending on implementation.
-\end{itemize}
-
-\section{System Level Operations}
-
-The steps required to accomplish basic system level operations are listed below in simplified form. These steps are driven by software.
+The steps required to accomplish basic system level operations are listed below in simplified form. These steps are driven by software inside the timing system which are initiated by the CCM system.
 
 {\color{red}FUTURE\_UPDATE} Add calibration sequences as required.
 
-\subsection{System Startup}
+\subsubsubsection{System Startup}
 
 This procedure is carried out at system startup.
 
@@ -424,25 +333,26 @@ This procedure is carried out at system startup.
 	\item Enable command transmission
 \end{enumerate}
 
-\subsection{Phase Adjustment}
+\subsubsubsection{Phase Adjustment}
 
 This procedure is carried out after endpoints are powered and reset, but before final endpoint initialisation. It is assumed that a 'running' status from the timing decoder will be a necessary step in individual endpoint initialisation sequences. For each endpoint in turn, phase adjustment is carried out as follows:
 
 \begin{enumerate}
-	\item Enable endpoint transmission
-	\item Wait for CDR lock and measure clock phase
-	\item Request status packet
-	\item Measure whole-cycle offset to establish path delay to / from endpoint
-	\item Issue delay / phase adjustment command
-	\item Verify correct alignment
-	\item Disable endpoint transmission
+	\item The master enables endpoint transmission (by transmitting a A\_Enable command to an endpoint). 
+	\item The endpoint responds by starting to transmit idle packets back to the master.
+	\item The master waits for CDR lock and measures the clock phase of the signal returning from endpoint
+	\item The master sends a status packet request ( A\_Status)
+	\item The master measures the number of whole clock cycle in the master-->endpoint-->master path. This establishes the delay to / from endpoint
+	\item The master issues delay / phase adjustment command ( A\_Adjust ) to the endpoint
+	\item The master requests a status packet and verifies correct alignment.
+	\item The master sends a A\_Disable command to the endpoint and waits until the endpoint has stopped transmitting.
 \end{enumerate}
 
-This process is estimated to require around 10ms per endpoint (dominated by the time required for CDR lock and clock phase measurement), allowing ProtoDUNE-SP to be brought up in a few seconds.
+This process is estimated to require around 10ms per endpoint (dominated by the time required for CDR lock and clock phase measurement), allowing \dword{pdsp2} to be brought up in a few seconds.
 
 {\color{red}FUTURE\_UPDATE} Document measured phase adjustment time as measured in hardware.
 
-\subsection{Operations Startup}
+\subsubsubsection{Operations Startup}
 
 This procedure is carried out after all endpoints are aligned, and after time-of-day is established via GPS.
 
@@ -453,11 +363,11 @@ This procedure is carried out after all endpoints are aligned, and after time-of
 	\item Enable trigger commands
 \end{enumerate}
 
-\subsection{System Monitoring}
+\subsubsubsection{System Monitoring}
 
 System monitoring is continually carried out by continuous repetition of the endpoint phase check sequence, and logging of any error counts reported by endpoints. This activity has lower priority than other system activities.
 
-\subsection{Operations Shutdown}
+\subsubsubsection{Operations Shutdown}
 
 This procedure is carried out after all DAQ queues have drained, as one of the last end-of-run steps.
 
@@ -469,159 +379,9 @@ This procedure is carried out after all DAQ queues have drained, as one of the l
 	\item Disable command and input logging
 \end{enumerate}
 
-\clearpage
-
-\appendix
-
-\section{DTS-SP Firmware, Software}
-
-At the time of writing, DTS-SP firmware is hosted at \url{https://gitlab.cern.ch/protoDUNE-SP-DAQ/timing-board-firmware} . Scripts to test and configure the timing system firmware are hosted at \url{https://gitlab.cern.ch/protoDUNE-SP-DAQ/timing-board-software}
 
 
 
-\section{Example Endpoint Firmware}
-
-\subsection{Interface to Example Endpoint Firmware }
-
-The top-level declaration for the endpoint entity is:
-
-\begin{minted}{vhdl}
-entity pdts_endpoint is
-  generic(
-    SCLK_FREQ : real    := 62.5;        -- Frequency (MHz) of the supplied sclk
-                                        -- ( 62.5MHz for DUNE , 50MHz for ProtoDUNE-1 )
-    EN_TX     : boolean := false        -- Enable endpoint to originate messages.
-                                        -- Only for ETI (CTB in ProtoDUNE-1)
-    );
-  port(
-    sclk       : in  std_logic;         -- Free-running system clock
-    srst       : in  std_logic;         -- System reset (sclk domain)
-    addr       : in  std_logic_vector(15 downto 0);  -- Endpoint address
-                                                    -- (async, sampled in clk domain)
-    tgrp       : in  std_logic_vector(1 downto 0);  -- Timing group
-                                                    -- (async, sampled in clk domain)
-    stat       : out std_logic_vector(3 downto 0);  -- Status output (sclk domain)
-    rec_clk    : in  std_logic;         -- CDR recovered clock from timing link
-    rec_d      : in  std_logic;         -- CDR recovered data from timing link
-                                        -- (rec_clk domain)
-    txd        : out std_logic;         -- Output data to timing link
-                                        -- (rec_clk domain)
-    sfp_los    : in  std_logic := '0';  -- SFP LOS line
-                                        -- (async, sampled in sclk domain)
-    cdr_los    : in  std_logic := '0';  -- CDR LOS line
-                                        -- (async, sampled in sclk domain)
-    cdr_lol    : in  std_logic := '0';  -- CDR LOL line
-                                        -- (async, sampled in sclk domain)
-    sfp_tx_dis : out std_logic;         -- SFP tx disable line (clk domain)
-    clk        : out std_logic;         -- 62.5MHz clock output
-    rst        : out std_logic;         -- 62.5MHz domain reset
-    rdy        : out std_logic;         -- Timestamp valid flag
-    sync       : out std_logic_vector(SCMD_W - 1 downto 0);  -- fixed-length command
-                                                             -- output (clk domain)
-    sync_stb   : out std_logic;         -- fixed length command strobe (clk domain)
-    sync_valid : out std_logic;         -- fixed length command valid flag (clk domain)
-    tstamp     : out std_logic_vector(8 * TSTAMP_WDS - 1 downto 0);  -- Timestamp out
-    tsync_in   : in  cmd_w     := CMD_W_NULL;       -- Tx fixed-length command input
-    tsync_out  : out cmd_r              -- Tx fixed-length command handshake
-    );
-
-
-end pdts_endpoint;
-\end{minted}
-
-Where the ports are as described below:
-
-\begin{itemize}
-    
-
-\item |SCLK_FREQ| should be set to the frequency of the supplied system clock ``sclk'' in MHz
-
-\item |EN_TX| should be left at the default of false unless the endpoint is to be a source of messages rather than responding to them. Only set true for ETI in DUNE, or CTB in ProtoDUNE
-
-\item |sclk| is a free-running system clock at a frequency of your choice. There is no clock
-buffering or other manipulation inside the endpoint block.
-
-\item |srst| is a synchronous reset (|sclk| domain) that should be held high until |sclk |is stable
-and the configuration signals to the endpoint are ready. Asserting this signal will cause
-the endpoint to begin its initialisation sequence again
-
-\item |addr| is an eight-bit address that should be unique for each endpoint in the system.
-Set to all-zeroes for now.
-
-\item |tgrp| is a two-bit address that sets the timing group (or 'partition') that this instance
-of the endpoint is a member of. You probably need to set this from a register in your
-design.
-
-\item |stat| (|sclk| domain) indicates the status of the endpoint (you can find the meaning of the states
-in |pdts_ep_startup.vhd|. This is provided only for debugging purposes. You should use the
-|rdy| signal to indicate to your firmware when the signals from the endpoint are valid.
-
-\item |rec_clk| is the recovered clock from the CDR device (or from the clock line in case of separate clock and data lines)
-
-\item |rec_d| is the recovered data from the CDR device (or from the serial data line in case of separate clock and data).
-
-\item |txd| is the output data from the endpoint back to the master. Register this with the your local DTS-SP clock and connect to your
-SFP data input (or the ``copper'' signal lines if using direct connection).
-
-\item |sfp_los| should be connected to the corresponding line on the SFP (for systems
-not using an SFP, leave unconnected).
-
-\item |cdr_los| should be connected to the corresponding line on the CDR chip (for systems not using
-CDR, leave unconnected).
-
-\item |cdr_lol| should be connected to the corresponding line on the CDR chip (for systems not using
-CDR, leave unconnected).
-
-\item |sfp_tx_dis| should be connected to the corresponding transmit disable line on the SFP
-
-\item |clk| is the phase-adjusted 62.5MHz DUNE (50MHz ProtoDUNE) system clock
-
-\item |rst| is a synchronous reset (|clk| domain) to your logic, asserted until the phase of |clk|
-is stable.
-
-\item |rdy| (|clk| domain) indicates that the endpoint is running, and that output signals are
-valid. Until |rdy| is asserted, the |tstamp| may change randomly, and sync commands are
-meaningless.
-
-\item |sync| (|clk| domain) is the fixed-length (synchronous) command output from the endpoint. The table of current
-command codes can be found in |pdts_defs.vhd|.
-
-\item |sync_stb| (|clk| domain) is the strobe for sync, and is asserted each time a new data word is
-written to sync. Note that commands can be longer than one word long.
-
-\item |sync_valid| (|clk| domain) is asserted on the first word of each fixed-length command. If your firmware only
-cares about the first word of each command (e.g. if you only listen to trigger
-commands, you can treat this as the qualifying signal for sync, and ignore
-subsequent words of commands).
-
-\item |tstamp| (|clk| domain) is the system-wide 64b timestamp.
-
-\item |tsync_in| (|clk| domain) is the interface for sending fixed length (synchronous) commands back to the master, and should
-only be used by the ETI in DUNE (CTB in ProtoDUNE). Others should leave it disconnected.
-
-\item |tsync_out| (|clk| domain) is the handshaking signals accompanying |tsync_in|, and should
-only be used by the ETI in DUNE (CTB in ProtoDUNE).
-
-\end{itemize}
-
-In order to assist in decoding the fixed length commands at ProtoDUNE-1, a utility block is provided in
-|components/pdts/firmware/hdl/pdts_ep_decoder.vhd|:
-
-\begin{minted}{vhdl}
-entity pdts_ep_decoder is
-  port(
-    clk      : in  std_logic;           -- 62.5MHz clock (50MHz ProtoDUNE)
-    rst      : in  std_logic;           -- Sync reset
-    rdy      : in  std_logic;           -- Timing system up flag
-    scmd     : in  std_logic_vector(SCMD_W - 1 downto 0);  -- fixed length
-                                                           -- command input
-    scmd_v   : in  std_logic;           -- fixed length command valid flag
-    in_spill : out std_logic;           -- Spill flag (ProtoDUNE)
-    in_run   : out std_logic;           -- Run flag (ProtoDUNE)
-    evtctr   : out std_logic_vector(8 * EVTCTR_WDS - 1 downto 0)  -- Event counter
-    );
-
-\end{minted}
 \clearpage
 
 \printglossary
