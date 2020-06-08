@@ -7,6 +7,7 @@
 \usepackage{minted}
 \usepackage{listings}
 \usepackage{pdflscape}
+\usepackage{bytefield}
 %\usepackage{fontspec}
 %\defaultfontfeatures{Ligatures=TeX}
 % \setmainfont{Liberation Serif}
@@ -103,7 +104,7 @@ firmware design for the receiving FPGA in each DAQ component. This
 block provides a cycle counter, several independent trigger, calibration and 
 synchronisation signals, and a general-purpose packet data output to each endpoint.
 The cycle counter may be used further to generate low-frequency timing signals for
-further propagation, e.g. the 2MHz sampling signal for the cold ADCs.
+further propagation, e.g. the sampling signal for the cold ADCs.
 
 An overall description of the DUNE-SP timing system is found in \cite{ref:dts-sp-description}. A description of the structure of the firmware is found in \cite{ref:dts-sp-firmware}
 
@@ -123,45 +124,46 @@ The timing master has the following functions:
 	\item Transmission of arbitrary commands and control data under software control
 \end{itemize}
 
-\subsection{DUNE-SP Protocol}
-
-The same protocol is used for all messages between components of the DUNE-SP timing system. That is, both for messages from the timing master to the endpoints and any messages transmitted in response from endpoint back to timing master.
+%\subsection{DUNE-SP Protocol}
+%
+%The same protocol is used for all messages between components of the DUNE-SP timing system. That is, both for messages from the timing master to the endpoints and any messages transmitted in response from endpoint back to timing master.
 
 
 
 \section{Timing Protocol and Transport}
 
-\subsection{Timing Signal Functions}
+The same protocol is used for all messages between components of the DUNE-SP timing system. That is, both for messages from the timing master to the endpoints and any messages transmitted in response from endpoint back to timing master.
 
-The 62.5MHz clock and timing commands are distributed to all timing endpoints as a broadcast signal. (ProtoDUNE-1 uses a clock of 50MHz) However, synchronous commands may be addressed to specific timing groups, and asynchronous commands may be addressed to individual endpoints or timing groups.
+The clock and timing commands are distributed to all timing endpoints as a broadcast signal. That is to say that all endpoints receive an identical copy of the data stream. However, fixed length commands may be addressed to specific timing groups, and variable length commands may be addressed to individual endpoints or timing groups.
 
 
+\subsection{Timing Protocol Layers}
 
-\subsection{Layer 0: Physical Signalling}
+\subsubsection{Layer 0: Physical Signalling}
 
-Clock and data are typically distributed as a single signal, using a CDR device at endpoints to recover separate clock and data signals. However, some endpoints may need to be supplied with a separate clock signal, together with the serialized data stream. 
+Clock and data are typically distributed as a single signal, using a CDR device at endpoints to recover separate clock and data signals. However, it is also possible to supply endpoints with clock and the serialized data on separate physical links. 
 
-The data stream is encoded as a 312.5Mb/s DC-balanced signal suitable for distribution via optical or electrical interfaces (ProtoDUNE-1 used 250MBits/s). This data rate is chosen to be high enough to allow the use of 1000Mb/s optical Ethernet components and low enough to use general purpose FPGA I/O, rather than requiring the use of dedicated (Multi)Gigabit Transceivers. Using 1000Base-BX SFPs with single mode fibre allows a single fibre to carry both messages from master to endpoint and the return messages.
+The data stream is encoded as a 312.5Mb/s DC-balanced signal suitable for distribution via optical or electrical interfaces (\dword{pdsp1} used 250Mbits/s). This data rate is chosen to be high enough to allow the use of 1000Mb/s optical Ethernet components and low enough to use general purpose FPGA I/O, rather than requiring the use of dedicated (Multi)Gigabit Transceivers. Using 1000Base-BX SFPs with single mode fibre allows a single fibre to carry both messages from master to endpoint and the return messages.
 
 There are three defined transport methods for the timing signal:
 
 \begin{enumerate}
-	\item Encoded data stream transported via optical fibre. The optical interface is implemented via commercial plug-in SFP modules, allowing flexibility in implementation. It is anticipated for DUNE-SP that 1000base-BX components will be used, using single mode fibre at 1310nm (master to endpoint) and (1150nm endpoint to master) wavelengths. Division and recombination of signals will be via passive commercial splitter modules (for lab use), with inactive endpoints disabling their optical transmitter, or via an active fan out followed by passive splitter modules (for use at the experiment site with large numbers of endpoints).
+	\item Encoded data stream transported via optical fibre. The optical interface is implemented via commercial plug-in SFP modules, allowing flexibility in implementation. It is anticipated for DUNE-SP that 1000Base-BX components will be used, using single mode fibre at 1310nm (master to endpoint) and (1550nm endpoint to master) wavelengths. Division and recombination of signals will be via passive commercial splitter modules (for lab use), with inactive endpoints disabling their optical transmitter, or via an active fan out followed by passive splitter modules (for use at the experiment site with large numbers of endpoints).
 	\item Encoded data stream transported via LVDS. Two differential pairs will carry broadcast and return data respectively. Division of signals will be via an active fan-out unit if required (e.g. as implemented on the \dword{wiec} backplane), recombination of signals will be via an active logical 'or' or Bus LVDS wire-or, with inactive endpoints transmitting continuous '0' level. This method is expected to be used on crate backplanes only.
-	\item Encoded data stream along with a separate phase-aligned clock signal, transported via LVDS over twisted pair. A third pair will be used to carry the clock signal. Returned data is transmitted on the same clock. This method will be used only for point-to-point signalling, for compatibility with existing interfaces.
+	\item Encoded data stream along with a separate phase-aligned clock signal, transported via LVDS over twisted pair. Two pairs - one from master to endpoint, one from endpoint to master. A third pair will be used to carry the clock signal. Returned data is transmitted on the same clock. This method is only used only for point-to-point signalling. It is used inside the timing system and is offered for compatibility with existing interfaces.
 \end{enumerate}
 
 Conversion between these three methods is transparent at protocol level, with the same encoded data stream used regardless of whether an explicit clock signal is transmitted.
 
-\subsection{Layer 1: Data Link}
+\subsubsection{Layer 1: Data Link}
 
-The data stream uses 8b/10b encoding to transmit one byte per five 62.5MHz clock cycles. The standard comma mechanism is used for word alignment, with K28.5 used as the comma character. The timing data stream consists of a sequence of fixed length packets, variable length packets, and idle packets, in that order of priority.
+The data stream uses 8b/10b encoding to transmit one byte per five 62.5MHz clock cycles. The standard comma mechanism is used for word alignment, with K28.5 used as the comma character (/C/). The timing data stream consists of a sequence of fixed length packets, variable length packets, and idle packets, in that order of priority.
 
 \begin{itemize}
 	\item Fixed length packets begin with a K28.1 character (/S/), and are followed by a word indicating the \dword{group} (4 bits) and command type (4 bits). Depending on the command type there may be additional words. The number of additional words depends on the command type.
 	 
 	 Fixed length packets may interrupt other traffic at any time, and carry synchronous commands that are guaranteed to be issued at endpoints in the correct order, and with a fixed timing relationship to their request at the master unit (i.e. a fixed latency).
-	\item Variable length packets are of arbitrary length (up to a length of 252 characters), begin immediately on the first non-comma character encountered in the data stream, and end with a K28.5 character (/C/). Variable length packets carry general control information to endpoints, that is not guaranteed to arrive at the endpoint with a fixed latency w.r.t. transmission from the master.
+	\item Variable length packets are of arbitrary length (up to a length of 252 characters), begin immediately on the first non-comma character encountered in the data stream, and end with a comma character. Variable length packets carry general control information to endpoints, that is not guaranteed to arrive at the endpoint with a fixed latency w.r.t. transmission from the master.
 	\item Idle packets are a particular type of variable length packet, transmitted when no other packet information is queued. They consist of a pseudo-random byte sequence in order to minimise EMI due to repetitive patterns during link idle. Idle packets are of short length to ensure sufficient comma density for rapid link alignment.
 \end{itemize}
 
@@ -183,7 +185,7 @@ Figure~\ref{fig:wave-variable-length} shows a variable length message being inte
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=\linewidth]{dts_sp-variable-length-message_ed.pdf}
-	\caption{Example timing data stream for a variable length message. The preceding idle packet (also a variable length message) terminates in a /C/ (K28.5) character. The endpoint returns data to the timing master after a period $t_{\mathrm on}$ needed by the endpoint to activate its transmitter plus $t_{\mathrm training}$ needed by the timing master to lock to the signal.}
+	\caption{Example timing data stream for a variable length message. The preceding idle packet (also a variable length message) terminates in a comma (/C/ , K28.5) character. The endpoint returns data to the timing master after a period $t_{\mathrm on}$ needed by the endpoint to activate its transmitter plus $t_{\mathrm training}$ needed by the timing master to lock to the signal.}
 	\label{fig:wave-variable-length}
 \end{figure}
 
@@ -196,9 +198,9 @@ Figure~\ref{fig:wave-variable-length} shows a variable length message being inte
 \end{landscape}
 
 
-\subsection{Layer 2: Addressing and Protocol}
+\subsubsection{Layer 2: Addressing and Protocol}
 
-The synchronous and asynchronous packet formats are shown in Tables~\ref{tab:async}, \ref{tab:sync} and \ref{tab:sync-extra-words}.
+The synchronous and asynchronous packet formats used in \dword{pdsp2} are shown in Tables~\ref{tab:async}, \ref{tab:sync} and \ref{tab:sync-extra-words}.
 
 \begin{table}[h!]
   \centering
@@ -220,7 +222,12 @@ The synchronous and asynchronous packet formats are shown in Tables~\ref{tab:asy
     2 & word0 \\
     3 & word1 \\
     4 & word2 \\
-    5 & word3 \\ \bottomrule
+    5 & word3 \\ 
+    6 & word4 \\
+    7 & word5 \\
+    8 & word6 \\
+    9 & word7 \\ 
+    \bottomrule
   \end{tabular}
   \caption{Fixed length packet format with four word payload. (For example a timing sync message)}
   \label{tab:sync-extra-words}
@@ -243,17 +250,52 @@ The synchronous and asynchronous packet formats are shown in Tables~\ref{tab:asy
   \label{tab:async}
 \end{table}
 
-Fixed length packets contain a single four-bit timing \dword{group} specifier, and a single four-bit command. Depending on the command type this may be followed by additional words. The number of additional words is determined by the command type. The command field encodes sixteen separate synchronous commands, corresponding directly to the sync outputs of the decoder block. Every timing endpoint may be configured with a timing group mask, such that it accept fixed length (synchronous) commands addressed only to selected timing groups. This allows flexible partitioning of the system. Thus there are four independent timing groups and an endpoint can belong to one or more of them.
+Fixed length packets contain a single four-bit timing \dword{group} specifier, and a single four-bit command. Depending on the command type this may be followed by additional words. The number of additional words is determined by the command type. The command field encodes sixteen separate fixed-length commands. Every timing endpoint may be configured with a timing group mask, such that it accept fixed length (synchronous) commands addressed only to selected timing groups. This allows flexible partitioning of the system. Thus there are four independent timing groups and an endpoint can belong to one or more of them.
 
-The timing protocol allows transmission of fixed length commands at a rate of no more than once per 10 clock cycles, which is adequate for the low rate of synchronous commands expected in both ProtoDUNE-SP and DUNE. In the event of clashing fixed length commands, a priority encoding scheme is used, such that lower-numbered commands preempt high-numbered ones, and lower-numbered timing groups preempt higher numbered ones. Under rare or pathological conditions this may result in a fixed length command being rejected; a record is kept of all propagated and rejected signals.
+The timing protocol allows transmission of fixed length commands at a rate of no more than once per 10 clock cycles, which is adequate for the low rate of synchronous commands expected in \dword{pdsp1},\dword{pdsp2} and \dword{dune} \dword{fd}. In the event of clashing fixed length commands, a priority encoding scheme is used, such that lower-numbered commands preempt high-numbered ones, and lower-numbered timing groups preempt higher numbered ones. Under rare or pathological conditions this may result in a fixed length command being rejected; a record is kept of all propagated and rejected signals.
 
-Variable length packets contain a single one-byte command followed by an arbitrary number of data bytes. The address is a unique experiment-wide 16b endpoint identifier, or has the special value of 0xfff in the top 12 bits for a broadcast packet, with the timing group identifier in the bottom four bits. The checksum is a standard CRC-16-CCITT, calculated on all packet bytes including the address. Return data packets lack the address field, but are otherwise identical. Idle packets are identified by the all-zeroes address, and contain random data which is not interpreted further by the endpoint, except to validate the checksum.
+Variable length packets contain a single one-byte command followed by an arbitrary number of data bytes. The address is a unique experiment-wide 16b endpoint identifier, or has the special value of 0xfff in the top 12 bits for a broadcast packet, with the timing group identifier in the bottom four bits. The checksum is a standard CRC-16-CCITT, calculated on all packet bytes including the address. Return data packets have identical format. Idle packets are identified by the all-zeroes address, and contain random data which is not interpreted further by the endpoint, except to validate the checksum.
 
-{\color{red}FUTURE\_UPDATE} Document the ProtoDUNE-SP address assignment. Document the ProtoDUNE-SP Run 2 address assignment. Document the DUNE address assignment.
+\subsubsection{Address Assignment}
 
-\subsection{Layer 3: Command assignment}
 
-Currently defined fixed length (synchronous) and variable length (asynchronous) commands are shown in Tables~\ref{tab:sync_cmds}, \ref{tab:async_cmds} and \ref{tab:async_ret_cmds}. In the case of fixed-length command queue conflict, priority for transmission is assigned to lower-numbered commands (i.e. counter sync command has priority over all over traffic). Variable length commands meant to be interpreted internally by the timing system endpoint decoder use are distinguished by a 0 in the topmost bit of the command byte.
+
+%{\color{red}FUTURE\_UPDATE} Document the ProtoDUNE-SP address assignment. Document the ProtoDUNE-SP Run 2 address assignment. Document the DUNE address assignment.
+
+Every active endpoint must have a unique identifier. These are are assigned geographically. Thus, if an endpoint is replaced the replacement hardware must be programmed with the correct address.
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{rll} \toprule
+    Field & number of bits & Item \\ \midrule
+    C     & 2 & Cavern number (0-1)\\
+    S     & 2 & Subsystem 0=TPC,1=PDS,2=Calibration\\
+    APA   & 8 & APA number (0-149)\\
+    EP    & 4 & Endpoint identifier, e.g. WIB number\\ 
+ \bottomrule
+  \end{tabular}
+  \caption{Components of endpoint address}
+  \label{tab:geograpical_addr}
+\end{table}
+
+\begin{table}[h!]
+  \centering
+\begin{bytefield}[endianness=big]{16}
+\bitheader{0-15}\\
+\bitbox{2}{C} & \bitbox{8}{APA} & \bitbox{2}{S} & \bitbox{4}{EP}
+\end{bytefield}
+  \caption{Order of bit-fields in endpoint address}
+  \label{tab:geograpical_addr_bitfields}
+\end{table}
+
+
+
+{\color{red}FUTURE\_UPDATE} Define a variable length command that will interrogate a unique ID in the endpoint (c.f. Ethernet MAC address ).
+
+\subsubsection{Commands}
+
+
+The fixed length (synchronous) and variable length (asynchronous) commands currently defined for \dword{pdsp1} and \dword{pdsp2} are shown in Tables~\ref{tab:sync_cmds}, \ref{tab:async_cmds} and \ref{tab:async_ret_cmds}. In the case of fixed-length command queue conflict, priority for transmission is assigned to lower-numbered commands (i.e. counter sync command has priority over all over traffic). Variable length commands meant to be interpreted internally by the timing system endpoint decoder use are distinguished by a 0 in the topmost bit of the command byte.
 
 \begin{table}[h!]
   \centering
@@ -291,7 +333,7 @@ Currently defined fixed length (synchronous) and variable length (asynchronous) 
   \label{tab:async_ret_cmds}
 \end{table}
 
-{\color{red}FUTURE\_UPDATE} Define further synchronous and asynchronous commands.
+{\color{red}FUTURE\_UPDATE} Define further fixed length and variable length commands.
 
 \section{Timing Endpoint Interfaces}
 
@@ -341,7 +383,7 @@ The decoder block exposes three sets of signals:
 \begin{itemize}
 	\item |sys_clk| (o) is the free-running local clock provided by the host FPGA
 	\item |sys_rst| (i) is a startup synchronous reset signal
-	\item |address| (i) is a 32b word specifying: the address identifying this endpoint (see above for addressing scheme); and the timing group mask. It should not change once |sys_rst| is released.
+	\item |address| (i) is a 16b word specifying: the address identifying this endpoint (see above for addressing scheme); and the timing group mask. It should not change once |sys_rst| is released.
 	\item |status| (o, 4b) is a set of output signals indicating the internal state of the decoder, including: whether the core is in contact with the timing master; is in one of several possible setup or error conditions; is providing a stable global clock. The signal may be used to drive a reset of all logic governed by the global clock.
 \end{itemize}
 
@@ -454,7 +496,7 @@ entity pdts_endpoint is
   port(
     sclk       : in  std_logic;         -- Free-running system clock
     srst       : in  std_logic;         -- System reset (sclk domain)
-    addr       : in  std_logic_vector(7 downto 0);  -- Endpoint address
+    addr       : in  std_logic_vector(15 downto 0);  -- Endpoint address
                                                     -- (async, sampled in clk domain)
     tgrp       : in  std_logic_vector(1 downto 0);  -- Timing group
                                                     -- (async, sampled in clk domain)
