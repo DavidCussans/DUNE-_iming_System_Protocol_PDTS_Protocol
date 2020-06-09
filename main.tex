@@ -32,7 +32,7 @@
 
 J. Brooke, D. Cussans, D. Newbold, S. Trilov \\
 \vspace*{1ex}
-v5 -- 23rd March 2020
+v6 -- 9th June 2020
 \end{center}
 \vspace*{\fill}
 \setcounter{tocdepth}{1}
@@ -114,7 +114,7 @@ The timing master has the following functions:
 
 The same protocol is used for all messages between components of the DUNE-SP timing system. That is, both for messages from the timing master to the endpoints and any messages transmitted in response from endpoint back to timing master.
 
-The clock and timing commands are distributed to all timing endpoints as a broadcast signal. That is to say that all endpoints receive an identical copy of the data stream. However, fixed length commands may be addressed to specific timing groups, and variable length commands may be addressed to individual endpoints or timing groups.
+The clock and timing commands are distributed to all timing endpoints as a broadcast signal. That is to say that all endpoints receive an identical copy of the data stream. However, fixed length commands (see section \ref{section:data_link}) may be addressed to specific timing groups, and variable length commands (see section \ref{section:data_link})  may be addressed to individual endpoints or timing groups(see section \ref{section:addressing_protocol}).
 
 
 \subsection{Timing Protocol Layers}
@@ -133,9 +133,10 @@ There are three defined transport methods for the timing signal:
 	\item Encoded data stream along with a separate phase-aligned clock signal, transported via LVDS over twisted pair. Two pairs - one from master to endpoint, one from endpoint to master. A third pair will be used to carry the clock signal. Returned data is transmitted on the same clock. This method is only used only for point-to-point signalling. It is used inside the timing system and is offered for compatibility with existing interfaces.
 \end{enumerate}
 
-Conversion between these three methods is transparent at protocol level, with the same encoded data stream used regardless of whether an explicit clock signal is transmitted.
+Conversion between these three methods is transparent at protocol level, with the same encoded data stream used regardless of whether an separate clock signal is transmitted.
 
 \subsubsection{Layer 1: Data Link}
+\label{section:data_link}
 
 The data stream uses 8b/10b encoding to transmit one byte per five 62.5MHz clock cycles. The standard comma mechanism is used for word alignment, with K28.5 used as the comma character (/C/). The timing data stream consists of a sequence of fixed length packets, variable length packets, and idle packets, in that order of priority.
 
@@ -182,6 +183,7 @@ Figure~\ref{fig:wave-variable-length} shows a variable length message being inte
 
 
 \subsubsection{Layer 2: Addressing and Protocol}
+\label{section:addressing_protocol}
 
 The synchronous and asynchronous packet formats used in \dword{pdsp2} are shown in Tables~\ref{tab:async}, \ref{tab:sync} and \ref{tab:sync-extra-words}.
 
