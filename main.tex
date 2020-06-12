@@ -283,10 +283,8 @@ The fixed length (synchronous) and variable length (asynchronous) commands curre
   \centering
   \begin{tabular}{@{}lllp{9cm}@{}} \toprule
     Cmd & Name & Data bytes & Notes\\ \midrule
-    0x0 & A\_Reset & 0 & Resets state of endpoint \\
-    0x2 & A\_Enable & 0 & Enables endpoint transmission \\
-    0x3 & A\_Status & 1 & Request endpoint status packet transmission \\ 
-    0x4 & A\_Adjust & 2 & Adjusts packet delay and clock phase of endpoint \\ \bottomrule
+    0x0 & A\_Status & 1 & Request endpoint status packet transmission \\ 
+    0x1 & A\_Configure & 2 & Adjusts packet delay and clock phase of endpoint and Tx enable state\\ \bottomrule
   \end{tabular}
   \caption{Variable Length commands}
   \label{tab:async_cmds}
@@ -300,6 +298,31 @@ The fixed length (synchronous) and variable length (asynchronous) commands curre
   \end{tabular}
   \caption{Variable length return commands}
   \label{tab:async_ret_cmds}
+\end{table}
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{rll} \toprule
+    Field & number of bits & Item \\ \midrule
+    T     & 1 & Enable Endpoint Transmit\\
+    A     & 1 & Set to 1 to adjust delay\\
+    CDEL  & 5 & Coarse delay (62.5MHz ticks)\\
+    FDEL  & 4 & Fine Delay (312.5MHz ticks)\\ 
+    PADJ  & 4 & Clock phase adjust (200ps steps)\\
+ \bottomrule
+  \end{tabular}
+  \caption{Components of A\_Configure command}
+  \label{tab:A_Configure_Command}
+\end{table}
+
+\begin{table}[h!]
+  \centering
+  \begin{bytefield}[endianness=big]{16}
+\bitheader{0-15}\\
+\bitbox{1}{T} & \bitbox{1}{A} & \bitbox{5}{CDEL} & \bitbox{4}{FDEL} & \bitbox{4}{PADJ}
+\end{bytefield}
+  \caption{Order of bit-fields in A\_Configure command}
+  \label{tab:A_Configure_Command_Bitfields}
 \end{table}
 
 {\color{red}FUTURE\_UPDATE} Define further fixed length and variable length commands.
@@ -327,14 +350,14 @@ This procedure is carried out at system startup.
 This procedure is carried out after endpoints are powered and reset, but before final endpoint initialisation. It is assumed that a 'running' status from the timing decoder will be a necessary step in individual endpoint initialisation sequences. For each endpoint in turn, phase adjustment is carried out as follows:
 
 \begin{enumerate}
-	\item The master enables endpoint transmission (by transmitting a A\_Enable command to an endpoint). 
+	\item The master enables endpoint transmission (by transmitting a A\_Configure command to an endpoint with the Tx enable bit set). 
 	\item The endpoint responds by starting to transmit idle packets back to the master.
 	\item The master waits for CDR lock and measures the clock phase of the signal returning from endpoint
 	\item The master sends a status packet request ( A\_Status)
 	\item The master measures the number of whole clock cycle in the master $\rightarrow$ endpoint $\rightarrow$ master path. This establishes the delay to / from endpoint
-	\item The master issues delay / phase adjustment command ( A\_Adjust ) to the endpoint
+	\item The master issues delay / phase adjustment command ( A\_Configure ) to the endpoint with the appropriate parameters
 	\item The master requests a status packet and verifies correct alignment.
-	\item The master sends A\_Disable command to the endpoint and waits until the endpoint has stopped transmitting.
+	\item The master sends A\_Configure command to the endpoint with the Tx enable bit clear and waits until the endpoint has stopped transmitting.
 \end{enumerate}
 
 This process is estimated to require around 10ms per endpoint (dominated by the time required for CDR lock and clock phase measurement), allowing \dword{pdsp2} to be brought up in a few seconds.
