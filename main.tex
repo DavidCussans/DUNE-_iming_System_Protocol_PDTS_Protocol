@@ -25,29 +25,22 @@
 
 \lstMakeShortInline[columns=fixed]|
 
-\title{DUNE-SP Timing System: Protocol and\\ Endpoint Interface}
-\begin{center}
-{\LARGE\bf DUNE-SP Timing System Protocol and\\ Endpoint Interface}
-\vspace{1cm}
+\title{DUNE Timing System-Single Phase Protocol and Endpoint Interface}
+\author{J. Brooke, D. Cussans, D. Newbold, S. Trilov}
+\date{v6 -- July 2020}
 
-J. Brooke, D. Cussans, D. Newbold, S. Trilov \\
-\vspace*{1ex}
-v6 -- 9th June 2020
-\end{center}
-\vspace*{\fill}
-\setcounter{tocdepth}{1}
+\maketitle
 \tableofcontents
-\vspace*{\fill}
+
 
 \section*{Summary}
 
-This document describes the basic principles of operation of the DUNE-SP timing system, along with the protocol used for communication between components, and the interface between the timing system and other systems. It is designed to read alongside documentation describing in detail the hardware, firmware and software implementation.
+This document describes the basic principles of operation of the \dword{spdts}, along with the protocol used for communication between components, and the interface between the timing system and other systems. It is designed to read alongside documentation describing in detail the hardware, firmware and software implementation \cite{ref:dts-sp-description} \cite{ref:dts-sp-firmware} \cite{ref:dts-sp-timing-software}.
 
-\newpage
 \section{Overview}
 \subsection{Requirements}
 
-The DUNE-SP timing system is required to:
+The \dword{spdts} is required to:
 \begin{itemize}
 	\item Provide a stable and phase-aligned clock signal to all DAQ front-end components
 	\item Distribute synchronisation and other commands with known latency, to allow coordinated data movement and control functions across components
@@ -100,7 +93,7 @@ The remaining physical component of the system, the timing network, serves to co
 
 \subsection{References}
 
-An overall description of the DUNE-SP timing system is found in \cite{ref:dts-sp-description}. A description of the structure of the firmware is found in \cite{ref:dts-sp-firmware}
+An overall description of the \dword{spdts} is found in \cite{ref:dts-sp-description}. A description of the structure of the firmware is found in \cite{ref:dts-sp-firmware}
 
 \subsection{Timing Protocol}
 
@@ -331,7 +324,7 @@ The fixed length (synchronous) and variable length (asynchronous) commands curre
 
 \subsubsection{Layer 3: System Level Operations}
 
-The steps required to accomplish basic system level operations are listed below in simplified form. These steps are driven by software inside the timing system which are initiated by the CCM system.
+The steps required to accomplish basic system level operations are listed below in simplified form. These steps are driven by software inside the \dword{spdts} which are initiated by the CCM system.
 
 {\color{red}FUTURE\_UPDATE} Add calibration sequences as required.
 
